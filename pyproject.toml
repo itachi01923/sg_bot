@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "greenbot"
+version = "0.1.2"
+description = "Bot for Green exchanger"
+authors = ["senanradjabov <iamtheemperor06@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.13"
+aiogram = "^3.15.0"
+pydantic-settings = "^2.6.1"
+alembic = "^1.14.0"
+sqlalchemy = "^2.0.36"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
