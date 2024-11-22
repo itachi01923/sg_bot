@@ -252,7 +252,7 @@ async def process_price_sent(message: Message, state: FSMContext, bot: Bot):
 Сумма: {data.get("price")}
 """
 
-    # await bot.send_message(str(-1002431701698), text)
+    await bot.send_message(str(-1002431701698), text)
     await state.clear()
     last_used[user_id] = now
 
