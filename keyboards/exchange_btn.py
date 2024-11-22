@@ -48,9 +48,26 @@ def get_price_type_method_btn() -> InlineKeyboardMarkup:
         text='В USDT (например 10.25)',
         callback_data='usdt_type'
     )
+    back_btn = InlineKeyboardButton(
+        text="Назад",
+        callback_data="back"
+    )
 
     keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[[button_1], [button_2]]
+        inline_keyboard=[[button_1], [button_2], [back_btn]]
+    )
+
+    return keyboard
+
+
+def get_back_btn() -> InlineKeyboardMarkup:
+    back_btn = InlineKeyboardButton(
+        text="Назад",
+        callback_data="back"
+    )
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[[back_btn]]
     )
 
     return keyboard

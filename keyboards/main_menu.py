@@ -15,6 +15,7 @@ async def set_main_menu(bot: Bot):
 
     await bot.set_my_commands(main_menu_commands)
 
+
 def menu_btn() -> ReplyKeyboardMarkup:
     button_1 = KeyboardButton(text=LEXICON_MENU.get("buy"))
     button_2 = KeyboardButton(text=LEXICON_MENU.get("sell"))
