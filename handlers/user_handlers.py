@@ -187,7 +187,7 @@ async def warning_not_price_type(message: Message):
 
 @router.message(
     StateFilter(FSMFillForm.fill_price),
-    lambda x: x.text.isdigit() and 0 <= float(x.text) <= 100_000,
+    lambda x: 0.00010 <= float(x.text) <= 100_000,
     lambda message: message.chat.type == 'private'
 )
 async def process_price_sent(message: Message, state: FSMContext, bot: Bot):
@@ -214,7 +214,7 @@ async def process_price_sent(message: Message, state: FSMContext, bot: Bot):
     price_by_unit: float = float(await cmc_client.get_currency(crypto))
     count_and_price: float = float(data.get("price"))
 
-    if data.get("method") == "buy":
+    if data.get("operation") == "buy":
         price_method: str = data.get("price_method")
 
         price_by_unit += 7
