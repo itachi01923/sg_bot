@@ -21,7 +21,7 @@ router = Router()
 current_path = Path().resolve()
 image_path: str = str(current_path / "images/logo.jpg")
 
-# Создаем "базу данных" пользователей
+# Создаем "базу данных" пользователей для отлесжки времени
 last_used = {}
 
 
