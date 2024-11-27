@@ -4,7 +4,7 @@ from aiogram import Router, F, Bot
 from aiogram.filters import CommandStart, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import (CallbackQuery, Message)
+from aiogram.types import CallbackQuery, Message
 
 from keyboards.exchange_btn import get_exchange_crypto_list_btn, get_price_type_method_btn, get_back_btn
 from keyboards.main_menu import menu_btn
@@ -12,6 +12,9 @@ from lexicon.lexicon import LEXICON, LEXICON_MENU
 from services.services import CMCHTTPClient
 from pathlib import Path
 from aiogram.types import FSInputFile
+from config.config import USER_COOL_DOWN_IN_MINUTE
+from filters.filters import CheckPrice
+
 
 router = Router()
 
@@ -19,11 +22,8 @@ current_path = Path().resolve()
 image_path: str = str(current_path / "images/logo.jpg")
 
 # Создаем "базу данных" пользователей
-user_dict: dict[int, datetime] = {}
 last_used = {}
 
-# Время задержки для повторного использования команды (в минутах)
-COOLDOWN = 0
 
 cmc_client = CMCHTTPClient(
     base_url="https://pro-api.coinmarketcap.com",
@@ -126,7 +126,8 @@ async def process_crypto_sent(callback: CallbackQuery, state: FSMContext):
         await state.set_state(FSMFillForm.select_price_method)
     else:
         await callback.message.edit_text(
-            text=f"Укажите количество продаваемой криптовалюты {data.get("crypto").upper()}:",
+            text=f"Укажите количество продаваемой криптовалюты {
+                data.get("crypto").upper()}:",
             reply_markup=get_back_btn()
         )
 
@@ -187,36 +188,23 @@ async def warning_not_price_type(message: Message):
 
 @router.message(
     StateFilter(FSMFillForm.fill_price),
-    lambda x: 0.00010 <= float(x.text) <= 100_000,
-    lambda message: message.chat.type == 'private'
+    lambda message: message.chat.type == 'private',
+    CheckPrice(),
 )
-async def process_price_sent(message: Message, state: FSMContext, bot: Bot):
-    user_id = message.from_user.id
-    now = datetime.now()
-
-    # Проверка времени последнего использования команды
-    if user_id in last_used:
-        elapsed_time = now - last_used[user_id]
-        if elapsed_time < timedelta(minutes=COOLDOWN):
-            remaining_time = (timedelta(minutes=COOLDOWN) -
-                              elapsed_time).seconds
-            await message.reply(
-                f"Вы сможете использовать эту команду снова через {remaining_time // 60} минут(ы) и {remaining_time % 60} секунд.")
-            await state.clear()
-
-            return
-
-    await state.update_data(price=message.text)
+async def process_price_sent(message: Message, state: FSMContext, bot: Bot, price: float):
+    await state.update_data(price=price)
 
     data = await state.get_data()
-    image = FSInputFile(image_path)
+
     crypto: str = data.get("crypto").upper()
     price_by_unit: float = float(await cmc_client.get_currency(crypto))
     count_and_price: float = float(data.get("price"))
+    price_method: str = data.get("price_method")
+
+    user_id = message.from_user.id
+    now = datetime.now()
 
     if data.get("operation") == "buy":
-        price_method: str = data.get("price_method")
-
         price_by_unit += 7
 
         if price_method == "rub_type":
@@ -237,15 +225,36 @@ async def process_price_sent(message: Message, state: FSMContext, bot: Bot):
         price_by_unit -= 7
         get_price = price_by_unit * payment
 
-        text: str = LEXICON["sell_answer"].format(get_price=get_price, payment=payment, crypto=crypto)
+        text: str = LEXICON["sell_answer"].format(
+            get_price=get_price, payment=payment, crypto=crypto)
 
-    await message.answer_photo(photo=image, caption=text)
+    if payment >= 200_000:
+        await message.answer("""Для обмена на сумму больше чем  200000 отпишите нашему оператору 
+(Ссылка на оператора)""")
+    else:
+        # Проверка времени последнего использования команды
+        if user_id in last_used:
+            elapsed_time = now - last_used[user_id]
+            if elapsed_time < timedelta(minutes=USER_COOL_DOWN_IN_MINUTE):
+                remaining_time = (
+                    timedelta(minutes=USER_COOL_DOWN_IN_MINUTE) - elapsed_time
+                ).seconds
 
-    price_method: str = data.get("price_method")
+                await message.reply(
+                    f"Вы сможете использовать эту команду снова через {
+                        remaining_time // 60} минут(ы) и {remaining_time % 60} секунд."
+                )
+
+                await state.clear()
+
+                return
+
+        image = FSInputFile(image_path)
+        await message.answer_photo(photo=image, caption=text)
 
     text = f"""ВНИМАНИЕ ВНИМАНИЕ!!! Новый запрос!!\n
 Пользователь: <a href="tg://user?id={message.from_user.id}">{message.from_user.id} : {message.from_user.first_name} {message.from_user.last_name}</a>
-Хочет: {"купить" if data.get("method") == "buy" else "продать"}
+Хочет: {"купить" if data.get("operation") == "buy" else "продать"}
 Крипта: {crypto}
 Метод: {price_method}
 Курс: {price_by_unit}
@@ -263,9 +272,21 @@ async def process_price_sent(message: Message, state: FSMContext, bot: Bot):
 )
 async def warning_not_price(message: Message):
     await message.answer(
-        text='Сумма должна быть целым числом от 0 до 10_000\n\n'
-             'Попробуйте еще раз\n\nЕсли вы хотите прервать '
-             '- отправьте команду /start'
+        text='Сумма должна быть числом от 0 до 200_000\n\n'
+             'Попробуйте еще раз\n\n'
+             'Если вы хотите прервать - отправьте команду /start'
+    )
+
+
+@router.message(
+    StateFilter(FSMFillForm.fill_price),
+    lambda message: message.chat.type == 'private'
+)
+async def warning_not_price(message: Message):
+    await message.answer(
+        text='Сумма должна быть числом от 0 до 200_000\n\n'
+             'Попробуйте еще раз\n\n'
+             'Если вы хотите прервать - отправьте команду /start'
     )
 
 
