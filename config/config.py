@@ -39,4 +39,4 @@ if settings.get_debug_mode:
     # Время задержки для повторного использования команды (в минутах)
     USER_COOL_DOWN_IN_MINUTE: int = 0
 else:
-    USER_COOL_DOWN_IN_MINUTE: int = 5
+    USER_COOL_DOWN_IN_MINUTE: int = 1
