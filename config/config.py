@@ -40,3 +40,9 @@ if settings.get_debug_mode:
     USER_COOL_DOWN_IN_MINUTE: int = 0
 else:
     USER_COOL_DOWN_IN_MINUTE: int = 1
+
+N_DIGITS_DICT: dict[str, list[int]] = {
+    "USDT": [0, 0],
+    "BTC": [0, 6],
+    "LTC": [0, 3]
+}
