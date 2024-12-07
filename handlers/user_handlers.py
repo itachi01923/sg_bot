@@ -129,7 +129,7 @@ async def process_crypto_sent(callback: CallbackQuery, state: FSMContext):
     if data["operation"] == "buy":
         await callback.message.edit_text(
             text="Выберете способ указания суммы",
-            reply_markup=get_price_type_method_btn()
+            reply_markup=get_price_type_method_btn(data["crypto"])
         )
 
         await state.set_state(FSMFillForm.select_price_method)
@@ -187,11 +187,12 @@ async def process_price_type_method_sent(callback: CallbackQuery, state: FSMCont
     StateFilter(FSMFillForm.select_price_method),
     lambda message: message.chat.type == 'private'
 )
-async def warning_not_price_type(message: Message):
+async def warning_not_price_type(message: Message, state: FSMContext):
+    data = await state.get_data()
     await message.answer(
         text='Пожалуйста, пользуйтесь кнопками при выборе метода оплаты\n\n'
              'Если вы хотите прервать - отправьте команду /start',
-        reply_markup=get_price_type_method_btn()
+        reply_markup=get_price_type_method_btn(data["crypto"])
     )
 
 
@@ -214,14 +215,14 @@ async def process_price_sent(message: Message, state: FSMContext, bot: Bot, pric
     now = datetime.now()
 
     if data.get("operation") == "buy":
-        price_by_unit += 7
-        price_by_unit = round_number(price_by_unit, unit_round)
+        price_by_unit += unit_round
+        price_by_unit = round_number(price_by_unit, 0)
 
         if price_method == "rub_type":
             payment = count_and_price
             crypto_count = f"{round_number(float(payment) / price_by_unit, price_round):.6f}".rstrip('0')
         else:
-            payment = round_number(count_and_price * price_by_unit, unit_round)
+            payment = round_number(count_and_price * price_by_unit, 0)
             crypto_count = f"{count_and_price:.6f}".rstrip('0')
 
         text: str = LEXICON["buy_answer"].format(
@@ -232,8 +233,10 @@ async def process_price_sent(message: Message, state: FSMContext, bot: Bot, pric
         )
     else:
         payment = round_number(count_and_price, price_round)
-        price_by_unit -= 7
-        get_price = round_number(price_by_unit * payment, unit_round)
+        price_by_unit -= unit_round
+        get_price = round_number(price_by_unit * payment, 0)
+
+        price_by_unit = round_number(price_by_unit, 0)
 
         text: str = LEXICON["sell_answer"].format(
             get_price=get_price,
@@ -279,7 +282,7 @@ async def process_price_sent(message: Message, state: FSMContext, bot: Bot, pric
     Сумма: {count_and_price}
     """
 
-        # await bot.send_message(str(-1002431701698), text)
+        await bot.send_message(str(-1002431701698), text)
         await state.clear()
         last_used[user_id] = now
 
@@ -332,7 +335,7 @@ async def process_back_to_select_price_method(callback: CallbackQuery, state: FS
     if data["operation"] == "buy":
         await callback.message.edit_text(
             text="Выберете способ указания суммы",
-            reply_markup=get_price_type_method_btn()
+            reply_markup=get_price_type_method_btn(data["crypto"])
         )
 
         await state.set_state(FSMFillForm.select_price_method)

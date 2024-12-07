@@ -42,7 +42,7 @@ else:
     USER_COOL_DOWN_IN_MINUTE: int = 1
 
 N_DIGITS_DICT: dict[str, list[int]] = {
-    "USDT": [0, 0],
-    "BTC": [0, 6],
-    "LTC": [0, 3]
+    "USDT": [6, 0],
+    "BTC": [7, 6],
+    "LTC": [1500, 4]
 }

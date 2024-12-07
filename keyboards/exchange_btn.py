@@ -39,13 +39,13 @@ def get_exchange_crypto_list_btn() -> InlineKeyboardMarkup:
     return keyboard
 
 
-def get_price_type_method_btn() -> InlineKeyboardMarkup:
+def get_price_type_method_btn(crypto: str) -> InlineKeyboardMarkup:
     button_1 = InlineKeyboardButton(
         text='В RUB (например 1000)',
         callback_data='rub_type'
     )
     button_2 = InlineKeyboardButton(
-        text='В USDT (например 10.25)',
+        text=f'В {crypto.upper()} (например 10.25)',
         callback_data='usdt_type'
     )
     back_btn = InlineKeyboardButton(
