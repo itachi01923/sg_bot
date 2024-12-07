@@ -9,6 +9,8 @@ from aiogram.types import CallbackQuery, Message
 from aiogram.types import FSInputFile
 
 from config.config import USER_COOL_DOWN_IN_MINUTE, N_DIGITS_DICT
+from database.repository import UserRepository
+from database.schemas import UserBase
 from filters.filters import CheckPrice
 from keyboards.exchange_btn import get_exchange_crypto_list_btn, get_price_type_method_btn, get_back_btn
 from keyboards.main_menu import menu_btn
@@ -52,8 +54,11 @@ async def process_start_command(message: Message, state: FSMContext):
     :return:
     """
     image = FSInputFile(image_path)
-
-    await message.answer_photo(photo=image, caption=LEXICON["/start"], reply_markup=menu_btn())
+    result: UserBase | bool = await  UserRepository.insert_data(user_id=str(message.from_user.id))
+    if result:
+        print(f"Add new user {result.user_id}")
+    await message.answer_photo(photo=
+                               image, caption=LEXICON["/start"], reply_markup=menu_btn())
     await state.clear()
 
 
