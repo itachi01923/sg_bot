@@ -43,6 +43,6 @@ else:
 
 N_DIGITS_DICT: dict[str, list[int]] = {
     "USDT": [6, 0],
-    "BTC": [2000, 6],
+    "BTC": [7000, 6],
     "LTC": [1500, 4]
 }
