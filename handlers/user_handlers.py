@@ -214,13 +214,14 @@ async def process_price_sent(message: Message, state: FSMContext, bot: Bot, pric
 
     count_and_price: int | float = round_number(price, price_round)
     price_by_unit: float = float(await cmc_client.get_currency(crypto))
+    print(price_by_unit)
     price_method: str = data.get("price_method")
 
     user_id = message.from_user.id
     now = datetime.now()
 
     if data.get("operation") == "buy":
-        price_by_unit += unit_round
+        price_by_unit += price_by_unit * 0.08
         price_by_unit = round_number(price_by_unit, 0)
 
         if price_method == "rub_type":
@@ -238,7 +239,7 @@ async def process_price_sent(message: Message, state: FSMContext, bot: Bot, pric
         )
     else:
         payment = round_number(count_and_price, price_round)
-        price_by_unit -= unit_round
+        price_by_unit -= price_by_unit * 0.08
         get_price = round_number(price_by_unit * payment, 0)
 
         price_by_unit = round_number(price_by_unit, 0)
@@ -249,6 +250,8 @@ async def process_price_sent(message: Message, state: FSMContext, bot: Bot, pric
             crypto=crypto
         )
         payment = get_price
+
+    print(price_by_unit)
 
     if payment >= 200_000:
         await message.answer(LEXICON["200k_order"])
