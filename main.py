@@ -6,7 +6,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from config.config import settings
 
-from handlers import other_handlers, user_handlers
+from handlers import other_handlers, user_handlers, admin_handlers
 from keyboards.main_menu import set_main_menu
 from aiogram.fsm.storage.memory import MemoryStorage
 
@@ -40,6 +40,7 @@ async def main():
 
     # Регистрируем роутеры в диспетчере
     dp.include_router(user_handlers.router)
+    dp.include_router(admin_handlers.router)
     # dp.include_router(other_handlers.router)
 
     # Пропускаем накопившиеся апдейты и запускаем polling

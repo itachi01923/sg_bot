@@ -12,7 +12,7 @@ class Settings(BaseSettings):
 
     CMC_API_KEY: str
     BOT_TOKEN: str
-    ADMIN_ID: str
+    ADMIN_ID: int
 
     @property
     def async_pg_db_url(self) -> str:
@@ -42,7 +42,7 @@ else:
     USER_COOL_DOWN_IN_MINUTE: int = 1
 
 N_DIGITS_DICT: dict[str, list[int]] = {
-    "USDT": [6, 0],
-    "BTC": [500_000, 6],    
-    "LTC": [1500, 4]
+    "USDT": [0.08, 0],
+    "BTC": [0.08, 6],
+    "LTC": [0.1, 4]
 }

@@ -54,6 +54,7 @@ async def process_start_command(message: Message, state: FSMContext):
     :return:
     """
     image = FSInputFile(image_path)
+    print(message.from_user.id)
     result: UserBase | bool = await  UserRepository.insert_data(user_id=str(message.from_user.id))
     if result:
         print(f"Add new user {result.user_id}")
@@ -221,7 +222,7 @@ async def process_price_sent(message: Message, state: FSMContext, bot: Bot, pric
     now = datetime.now()
 
     if data.get("operation") == "buy":
-        price_by_unit += price_by_unit * 0.08
+        price_by_unit += price_by_unit * unit_round
         price_by_unit = round_number(price_by_unit, 0)
 
         if price_method == "rub_type":
@@ -239,7 +240,7 @@ async def process_price_sent(message: Message, state: FSMContext, bot: Bot, pric
         )
     else:
         payment = round_number(count_and_price, price_round)
-        price_by_unit -= price_by_unit * 0.08
+        price_by_unit -= price_by_unit * unit_round
         get_price = round_number(price_by_unit * payment, 0)
 
         price_by_unit = round_number(price_by_unit, 0)
@@ -250,8 +251,6 @@ async def process_price_sent(message: Message, state: FSMContext, bot: Bot, pric
             crypto=crypto
         )
         payment = get_price
-
-    print(price_by_unit)
 
     if payment >= 200_000:
         await message.answer(LEXICON["200k_order"])
