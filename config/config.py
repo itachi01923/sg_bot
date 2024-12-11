@@ -44,5 +44,5 @@ else:
 N_DIGITS_DICT: dict[str, list[int]] = {
     "USDT": [0.08, 0],
     "BTC": [0.08, 6],
-    "LTC": [0.1, 4]
+    "LTC": [0.11, 4]
 }
