@@ -106,3 +106,5 @@ async def process_consent_image(callback: CallbackQuery, state: FSMContext, bot:
                 print(e)
 
         await callback.message.answer(f"Рассылка отправлена {success_send} пользователям.")
+
+    await state.clear()
