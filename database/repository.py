@@ -1,11 +1,12 @@
-from sqlalchemy import select, insert, false
+from sqlalchemy import select, insert
 
 from database.database import Base, async_session_factory
-from database.models import User
+from database.models import User, Crypto
+from database.schemas import CryptoBase, UserBase, CryptoResponse
 
 
 class BaseRepository:
-    model: Base | None = None
+    model: Base
 
     @classmethod
     async def find_all(cls, **filter_by):
@@ -63,3 +64,30 @@ class UserRepository(BaseRepository):
                 return result.mappings().one()
         except Exception as e:
             return False
+
+
+class CryptoRepository(BaseRepository):
+    model: Crypto = Crypto
+
+    @classmethod
+    async def insert_data(cls, model_data: CryptoBase):
+        async with async_session_factory() as session:
+            new_crypto: cls.model = Crypto(**model_data.model_dump())
+
+            session.add(new_crypto)
+
+            await session.commit()
+            await session.refresh(new_crypto)
+
+            return new_crypto
+
+    @classmethod
+    async def update_data(cls, symbol: str, percent: int):
+        crypto: CryptoBase = await CryptoRepository.find_one_or_none(symbol=symbol)
+
+        async with async_session_factory() as session:
+            get_crypto = await session.get(cls.model, crypto.id)
+            get_crypto.percent = percent
+
+            await session.commit()
+            await session.refresh(get_crypto)

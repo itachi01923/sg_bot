@@ -7,12 +7,14 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message
 from aiogram.types import FSInputFile
+from pyexpat.errors import messages
 
 from config.config import USER_COOL_DOWN_IN_MINUTE, N_DIGITS_DICT
-from database.repository import UserRepository
-from database.schemas import UserBase
+from database.repository import UserRepository, CryptoRepository
+from database.schemas import UserBase, CryptoBase
 from filters.filters import CheckPrice
-from keyboards.exchange_btn import get_exchange_crypto_list_btn, get_price_type_method_btn, get_back_btn
+from keyboards.crypto_btn import get_crypto_btn
+from keyboards.exchange_btn import get_price_type_method_btn, get_back_btn
 from keyboards.main_menu import menu_btn
 from lexicon.lexicon import LEXICON, LEXICON_MENU
 from services.services import CMCHTTPClient
@@ -26,9 +28,7 @@ image_path: str = str(current_path / "images/logo.jpg")
 # Создаем "базу данных" пользователей для отслежки времени
 last_used = {}
 
-cmc_client = CMCHTTPClient(
-    base_url="https://pro-api.coinmarketcap.com",
-)
+cmc_client = CMCHTTPClient()
 
 
 class FSMFillForm(StatesGroup):
@@ -54,12 +54,16 @@ async def process_start_command(message: Message, state: FSMContext):
     :return:
     """
     image = FSInputFile(image_path)
-    print(message.from_user.id)
     result: UserBase | bool = await  UserRepository.insert_data(user_id=str(message.from_user.id))
+
     if result:
         print(f"Add new user {result.user_id}")
-    await message.answer_photo(photo=
-                               image, caption=LEXICON["/start"], reply_markup=menu_btn())
+
+    await message.answer_photo(
+        photo=image,
+        caption=LEXICON["/start"],
+        reply_markup=menu_btn()
+    )
     await state.clear()
 
 
@@ -106,7 +110,7 @@ async def process_method_sent(message: Message, state: FSMContext):
 
     await message.answer(
         text=text,
-        reply_markup=get_exchange_crypto_list_btn()
+        reply_markup=await get_crypto_btn(key="get")
     )
 
 
@@ -114,7 +118,7 @@ async def process_method_sent(message: Message, state: FSMContext):
 
 @router.callback_query(
     StateFilter(FSMFillForm.select_crypto),
-    F.data.in_(["usdt", "ltc", "btc"]),
+    F.data.startswith("get_"),
     lambda message: message.message.chat.type == 'private'
 )
 async def process_crypto_sent(callback: CallbackQuery, state: FSMContext):
@@ -129,20 +133,30 @@ async def process_crypto_sent(callback: CallbackQuery, state: FSMContext):
     :param state:
     :return:
     """
-    await state.update_data(crypto=callback.data)
-    data = await state.get_data()
+    symbol: str = callback.data.split("_", 1)[-1]
 
-    if data["operation"] == "buy":
+    crypto: None | CryptoBase = await CryptoRepository.find_one_or_none(symbol=symbol)
+
+    if crypto is None:
+        await callback.message.answer("Ошибка. Пожалуйста начните операцию заново.")
+        await state.clear()
+        return
+
+    await state.update_data(crypto=callback.data)
+
+    data = await state.get_data()
+    operation: str = data["operation"]
+
+    if operation == "buy":
         await callback.message.edit_text(
-            text="Выберете способ указания суммы",
-            reply_markup=get_price_type_method_btn(data["crypto"])
+            text="Выберете способ указания суммы:",
+            reply_markup=get_price_type_method_btn(symbol)
         )
 
         await state.set_state(FSMFillForm.select_price_method)
     else:
         await callback.message.edit_text(
-            text=f"Укажите количество продаваемой криптовалюты {
-            data.get("crypto").upper()}:",
+            text=f"Укажите количество продаваемой криптовалюты {symbol}:",
             reply_markup=get_back_btn()
         )
 
@@ -163,7 +177,7 @@ async def warning_not_crypto(message: Message):
     await message.answer(
         text='Пожалуйста, пользуйтесь кнопками при выборе криптовалюты\n\n'
              'Если вы хотите прервать - отправьте команду /start',
-        reply_markup=get_exchange_crypto_list_btn()
+        reply_markup=await get_crypto_btn(key="get")
     )
 
 
@@ -175,6 +189,15 @@ async def warning_not_crypto(message: Message):
     lambda message: message.message.chat.type == 'private'
 )
 async def process_price_type_method_sent(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    symbol: str = data["crypto"].split("_", 1)[-1]
+    crypto: None | CryptoBase = await CryptoRepository.find_one_or_none(symbol=symbol)
+
+    if crypto is None:
+        await callback.message.answer("Ошибка. Пожалуйста начните операцию заново.")
+        await state.clear()
+        return
+
     await state.update_data(price_method=callback.data)
 
     if callback.data == "rub_type":
@@ -209,13 +232,19 @@ async def warning_not_price_type(message: Message, state: FSMContext):
 )
 async def process_price_sent(message: Message, state: FSMContext, bot: Bot, price: float):
     data = await state.get_data()
+    symbol: str = data["crypto"].split("_", 1)[-1]
+    crypto: None | CryptoBase = await CryptoRepository.find_one_or_none(symbol=symbol)
 
-    crypto: str = data.get("crypto").upper()
-    unit_round, price_round = N_DIGITS_DICT[crypto]
+    if crypto is None:
+        await message.answer("Ошибка. Пожалуйста начните операцию заново.")
+        await state.clear()
+        return
+
+    unit_round, price_round = N_DIGITS_DICT[symbol]
 
     count_and_price: int | float = round_number(price, price_round)
-    price_by_unit: float = float(await cmc_client.get_currency(crypto))
-    print(price_by_unit)
+    price_by_unit: float = float(await cmc_client.get_currency(symbol))
+
     price_method: str = data.get("price_method")
 
     user_id = message.from_user.id
@@ -248,7 +277,7 @@ async def process_price_sent(message: Message, state: FSMContext, bot: Bot, pric
         text: str = LEXICON["sell_answer"].format(
             get_price=get_price,
             payment=payment,
-            crypto=crypto
+            crypto=symbol
         )
         payment = get_price
 
@@ -280,13 +309,14 @@ async def process_price_sent(message: Message, state: FSMContext, bot: Bot, pric
         image = FSInputFile(image_path)
         await message.answer_photo(photo=image, caption=text)
 
-        text = f"""ВНИМАНИЕ ВНИМАНИЕ!!! Новый запрос!!\n
-    Пользователь: <a href="tg://user?id={message.from_user.id}">{message.from_user.id} : {message.from_user.first_name} {message.from_user.last_name}</a>
-    Хочет: {"купить" if data.get("operation") == "buy" else "продать"}
-    Крипта: {crypto}
-    Метод: {price_method}
-    Курс: {price_by_unit}
-    Сумма: {count_and_price}
+        text = f"""
+ВНИМАНИЕ ВНИМАНИЕ!!! Новый запрос!!\n
+Пользователь: <a href="tg://user?id={message.from_user.id}">{message.from_user.id} : {message.from_user.first_name} {message.from_user.last_name}</a>
+Хочет: {"купить" if data.get("operation") == "buy" else "продать"}
+Крипта: {symbol}
+Метод: {price_method}
+Курс: {price_by_unit}
+Сумма: {count_and_price}
     """
 
         await bot.send_message(str(-1002431701698), text)
@@ -326,7 +356,7 @@ async def process_back_to_select_crypto(callback: CallbackQuery, state: FSMConte
 
     await callback.message.edit_text(
         text=text,
-        reply_markup=get_exchange_crypto_list_btn()
+        reply_markup=await get_crypto_btn(key="get")
     )
 
 
@@ -337,19 +367,27 @@ async def process_back_to_select_crypto(callback: CallbackQuery, state: FSMConte
 )
 async def process_back_to_select_price_method(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
+    symbol: str = data["crypto"].split("_", 1)[-1]
+    crypto: None | CryptoBase = await CryptoRepository.find_one_or_none(symbol=symbol)
+
+    if crypto is None:
+        await callback.message.answer("Ошибка. Пожалуйста начните операцию заново.")
+        await state.clear()
+        return
+
     await state.set_state(FSMFillForm.select_operation)
 
     if data["operation"] == "buy":
         await callback.message.edit_text(
             text="Выберете способ указания суммы",
-            reply_markup=get_price_type_method_btn(data["crypto"])
+            reply_markup=get_price_type_method_btn(symbol)
         )
 
         await state.set_state(FSMFillForm.select_price_method)
     else:
         await callback.message.edit_text(
             text="Выберите криптовалюту для продажи:",
-            reply_markup=get_exchange_crypto_list_btn()
+            reply_markup=await get_crypto_btn(key="get")
         )
 
         await state.set_state(FSMFillForm.select_crypto)

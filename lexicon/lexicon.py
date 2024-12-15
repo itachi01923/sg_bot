@@ -41,6 +41,15 @@ LEXICON: dict[str, str] = {
 
 }
 
+LEXICON_HELP: str = """
+/course - курс
+/crypto_add - добавление новой крипты 
+/crypto_delete - удаление крипты
+/crypto_edit - изменение процента
+
+/broadcast - рассылка
+"""
+
 LEXICON_COMMANDS: dict[str, str] = {
     "/start": "Перезапустить бота"
 }
