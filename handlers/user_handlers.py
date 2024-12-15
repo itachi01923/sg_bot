@@ -263,7 +263,7 @@ async def process_price_sent(message: Message, state: FSMContext, bot: Bot, pric
 
         text: str = LEXICON["buy_answer"].format(
             crypto_count=crypto_count,
-            crypto=crypto,
+            crypto=symbol,
             price_by_unit=price_by_unit,
             payment=payment
         )
